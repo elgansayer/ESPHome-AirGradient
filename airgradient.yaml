@@ -1,0 +1,119 @@
+# esphome:
+#   name: airgradient
+#   platform: ESP8266
+#   board: d1_mini
+esphome:
+  name: airgradient # Replace with your desired device name
+  friendly_name: AirGradient # Replace with your desired friendly name
+  platform: ESP8266
+  board: d1_mini
+  project:
+    name: airgradient.diy
+    version: "1.0"
+
+switch:
+  - platform: safe_mode
+    name: "Flash Mode (Safe Mode)"
+    id: safe_mode_switch # Add an ID here
+
+button:
+  - platform: template
+    name: "Flash mode"
+    id: flash_button
+    icon: "mdi:cellphone-arrow-down"
+    on_press:
+      then:
+        - switch.toggle: safe_mode_switch # Use the ID here
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  password: ""
+
+dashboard_import:
+# package_import_url: github://esphome/esphome-project-template/project-template-esp32.yaml@v6
+  package_import_url: github://ajfriesen/ESPHome-AirGradient/main/air-gradient.yaml
+
+ota:
+  - platform: esphome
+    password: ""
+
+wifi:
+  ssid: ""
+  password: ""
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Airgradient Fallback Hotspot"
+    password: "bSMHlvXiuLSo"
+
+captive_portal:
+
+i2c:
+  sda: D2
+  scl: D1
+
+uart:
+  - rx_pin: D5
+    tx_pin: D6
+    baud_rate: 9600
+    id: uart_1
+  - rx_pin: D4
+    tx_pin: D3
+    baud_rate: 9600
+    id: uart_2
+
+sensor:
+  - platform: sht3xd
+    temperature:
+      id: temp
+      name: "Temperature"
+    humidity:
+      id: humidity
+      name: "Humidity"
+    address: 0x44
+    update_interval: 5s
+
+  - platform: pmsx003
+    type: PMSX003
+    uart_id: uart_1
+    pm_2_5:
+      id: pm25
+      name: "Particulate Matter <2.5µm Concentration"
+  - platform: senseair
+    uart_id: uart_2
+    co2:
+      id: co2
+      name: "SenseAir CO2 Value"
+    update_interval: 60s
+
+font:
+  - file: "/usr/share/fonts/truetype/ubuntu/UbuntuMono-BI.ttf"
+    id: opensans
+    size: 10
+    
+display:
+  - platform: ssd1306_i2c
+    id: oled
+    model: "SSD1306 64x48"
+    pages:
+      - id: page1
+        lambda: |-
+          it.printf(0, 0, id(opensans), "CO2: %.0fppm", id(co2).state);
+          it.printf(0, 10, id(opensans), "PM25: %.0f", id(pm25).state);
+          it.printf(0, 20, id(opensans), "Hmdty: %.0f", id(humidity).state);
+          it.printf(0, 30, id(opensans), "Temp: %.0fC", id(temp).state);
+#      - id: page2
+#        lambda: |-
+#          it.printf(0, 0, id(opensans), "PM10 : %.0f", id(pm10).state);
+#          it.printf(0, 10, id(opensans), "PM25 : %.0f", id(pm25).state);
+#          it.printf(0, 20, id(opensans), "PM100: %.0f", id(pm100).state);
+# Maybe add a page later
+
+interval:
+  - interval: 5s
+    then:
+      - display.page.show_next: oled
+      - component.update: oled
